@@ -1,0 +1,3 @@
+#!/bin/sh
+
+dotnet ef "$@" --startup-project ../../app/dostadning.cli/dostadning.cli.fsproj 

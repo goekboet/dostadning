@@ -1,0 +1,22 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>netcoreapp2.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Program.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\dostadning.records\dostadning.records.csproj" />
+    <ProjectReference Include="..\..\src\dostadning.domain\dostadning.domain.csproj" />
+    <ProjectReference Include="..\..\src\dostadning.soap\dostadning.soap.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommandLineParser.FSharp" Version="2.2.1" />
+  </ItemGroup>
+
+</Project>
