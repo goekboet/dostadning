@@ -18,14 +18,14 @@ namespace dostadning.domain.ourdata
         /// </summary>
         /// <param name="t">Item to add</param>
         /// <returns>A reference to the same object that was supplied</returns>
-        T Add(T t);
+        IRepository<T, TKey> Add(T t);
 
-        Task<Either<T>> Find(TKey key);
+        IObservable<T> Find(TKey key);
         /// <summary>
         /// Issue a command to the underlying datastore to reflect the state of the repository object in one transaction.
         /// </summary>
         /// <returns>either the number of rows affected by the command or an error</returns>
-        Task<Either<int>> Commit();
+        IObservable<int> Commit();
     }
 
 }

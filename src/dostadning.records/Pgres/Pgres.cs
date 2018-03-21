@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Reactive.Linq;
 using System.Threading.Tasks;
 using dostadning.domain.ourdata;
 using dostadning.domain.result;
@@ -30,21 +31,8 @@ namespace dostadning.records.pgres
     
     internal class Repository<T> 
     {
-        static Either<int> DatabaseError(Exception e) => 
-            new Either<int>(new ExceptionalError(e, "records.failedCommand"));
-        
         public Repository(Pgres db) => Db = db;
         protected Pgres Db { get; }
-        public async Task<Either<int>> Commit()
-        {
-            int r;
-            try { r = await Db.SaveChangesAsync(); }
-            catch (DbUpdateConcurrencyException e) { return DatabaseError(e); }
-            catch (DbUpdateException e) { return DatabaseError(e); }
-
-            return new Either<int>(r);
-        }
-
         public void Dispose() => Db.Dispose();
     }
 }

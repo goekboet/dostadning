@@ -4,6 +4,17 @@ using dostadning.domain.result;
 
 namespace dostadning.domain.service.tradera
 {
+    public struct Token
+    {
+        public Token(string id, DateTimeOffset exp)
+        {
+            Id = id;
+            Expires = exp;
+        }
+        public string Id { get; }
+        public DateTimeOffset Expires { get; }
+    }
+
     public interface IGetTraderaConsentCalls
     {
         /// <summary>
@@ -11,15 +22,16 @@ namespace dostadning.domain.service.tradera
         /// </summary>
         /// <param name="alias"></param>
         /// <returns>The Id</returns>
-        Task<Either<int>> Identify(string alias);
+        IObservable<int> Identify(string alias);
+
         /// <summary>
         /// Fetch the token that represents a user consent for dostadning to manipulate its tradera-account
         /// </summary>
         /// <param name="traderaUserId"></param>
         /// <param name="requestId"></param>
         /// <returns>token and a time of expiration</returns>
-        Task<Either<(string token, DateTimeOffset exp)>> FetchToken(
-            int traderaUserId, 
+        IObservable<Token> FetchToken(
+            int traderaUserId,
             string requestId);
     }
 }

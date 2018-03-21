@@ -1,10 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
-using dostadning.domain.features;
+using System.Reactive.Concurrency;
+using System.Reactive.Linq;
 using dostadning.domain.ourdata;
-using dostadning.domain.result;
+using Microsoft.Reactive.Testing;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
 
@@ -15,34 +15,31 @@ namespace unit
     [TestClass]
     public class CreateAccountTest
     {
-        static IRepository<Account, Guid> Repo(List<Account> users, int added)
+        static IRepository<Account, Guid> Repo(
+            IScheduler s,
+            List<Account> users, 
+            int added)
         {
             var m = new Mock<IRepository<Account, Guid>>();
             m.Setup(x => x.Add(It.IsAny<Account>()))
-                .Callback<Account>(x => users.Add(x));
-            m.Setup(x => x.Commit()).Returns(Task.FromResult(new Either<int>(added)));
+                .Callback<Account>(x => users.Add(x))
+                .Returns(m.Object);
+            m.Setup(x => x.Commit()).Returns(Observable.Return(added, s));
             return m.Object;
         }
 
         [TestMethod]
-        public async Task CreateAccount()
+        public void CreateAccount()
         {
+            var s = new TestScheduler();
             var users = new List<Account>();
-            var a = await Sut.Create(Repo(users, 1));
 
-            Assert.IsFalse(a.IsError);
-            Assert.IsTrue(
-                users.Select(x => x.Id.ToString()).Single().Equals(a.Result), 
-                $"e: {string.Join(",", users.Select(x => x.Id.ToString()))} a: {a.Result}");
-        }
+            var a = s.LetRun(() => Sut.Create(Repo(s, users, 1)));
 
-        [TestMethod]
-        public async Task ErrorCondition()
-        {
-            var users = new List<Account>();
-            var a = await Sut.Create(Repo(users, 0));
+            var output = a.GetValues().Single();
+            var record = users.Select(x => x.Id.ToString()).Single();
 
-            Assert.IsTrue(a.IsError);
+            Assert.AreEqual(output, record);
         }
     }
 }

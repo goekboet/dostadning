@@ -4,6 +4,11 @@ using dostadning.domain.service.tradera;
 using dostadning.domain.result;
 using dostadning.soap.tradera.publicservice;
 using static dostadning.soap.tradera.publicservice.PublicServiceSoapClient;
+using System.Reactive.Linq;
+
+using Our = dostadning.domain.service.tradera;
+using Their = dostadning.soap.tradera.publicservice;
+using dostadning.domain.features;
 
 namespace dostadning.soap.tradera.feature
 {
@@ -26,24 +31,33 @@ namespace dostadning.soap.tradera.feature
             AppIdentity app)
         { Client = c; App = app; }
 
-        static Error TraderaAliasNotFound { get; } = new DomainError("traderauser.notfound");
-        public async Task<Either<int>> Identify(string alias)
-        {
-            var r = await Client.GetUserByAliasAsync(Auth, Conf, alias);
+        static IObservable<int> GetId(GetUserByAliasResponse r) => 
+            r.GetUserByAliasResult != null
+                ? Observable.Return(r.GetUserByAliasResult.Id)
+                : Observable.Throw<int>(
+                    new Error("No traderauser with that alias according to tradera public service."));
 
-            return r.GetUserByAliasResult != null
-                ? new Either<int>(r.GetUserByAliasResult.Id)
-                : new Either<int>(TraderaAliasNotFound);
-        }
+        public IObservable<int> Identify(string alias) => 
+            from r in Observable.FromAsync(() => Client.GetUserByAliasAsync(Auth, Conf, alias))
+            from id in GetId(r)
+            select id;
 
-        static Error NoTokenAvailiable { get; } = new DomainError("traderauser.no_token_availiable");
-        public async Task<Either<(string token, DateTimeOffset exp)>> FetchToken(int traderaUserId, string requestId)
-        {
-            var r = await Client.FetchTokenAsync(Auth, Conf, traderaUserId, requestId);
+        static Our.Token MapToOur(Their.Token t) => new Our.Token(
+            id: t.AuthToken,
+            exp: (DateTimeOffset)t.HardExpirationTime);
 
-            return r.FetchTokenResult != null
-                ? new Either<(string token, DateTimeOffset exp)>((r.FetchTokenResult.AuthToken, r.FetchTokenResult.HardExpirationTime))
-                : new Either<(string token, DateTimeOffset exp)>(NoTokenAvailiable);
-        }
+        static IObservable<Our.Token> Token(
+            FetchTokenResponse r) => r.FetchTokenResult is Their.Token t
+                ? Observable.Return<Our.Token>(MapToOur(t))
+                : Observable.Throw<Our.Token>(new Error());
+        public IObservable<Our.Token> FetchToken(
+            int id, 
+            string consentId) => Observable
+                .FromAsync(() => Client.FetchTokenAsync(Auth, Conf, id, consentId))
+                .SelectMany(Token)
+                .Catch<Our.Token, Error>(_ => Observable.Throw<Our.Token>(
+                        new Error($"TraderauserId {id} has no token for consentId {consentId}")))
+                .Catch<Our.Token, Exception>(e => Observable.Throw<Our.Token>(
+                        new Error("Error communication with public service", e)));
     }
 }

@@ -12,206 +12,89 @@ using Moq;
 using Sut = dostadning.domain.features.GetTraderaConsentFeature;
 using Dto = dostadning.domain.features;
 using Our = dostadning.domain.ourdata;
+using System.Reactive.Linq;
+using Microsoft.Reactive.Testing;
+using System.Reactive.Concurrency;
 
 namespace unit
 {
-    sealed class Input
-    {
-        public (Account user, bool commits) OnOurRecords { get; set; }
-        public int? OnTraderaRecords { get; set; }
-    }
-
-    sealed class Output
-    {
-        public Either<string> Result { get; set; }
-        public int CalledTradera { get; set; }
-    }
-
-    sealed class TestCase
-    {
-        public Input Input { get; set; }
-        public Output Output { get; set; }
-    }
-
-    
-
     [TestClass]
     public class GetTraderaConsentFeatureTest
     {
-        static Error TestError => new DomainError("test");
+        static Exception TestException { get; } = new ApplicationException("");
+
+        static string Alias = "Test";
+        static string NotAlias = "NotAlias";
         static Mock<IGetTraderaConsentCalls> Soap(int? id)
         {
             var m = new Mock<IGetTraderaConsentCalls>();
-            m.Setup(x => x.Identify(It.IsAny<string>()))
-                .Returns(Task.FromResult(id.HasValue
-                    ? new Either<int>(id.Value)
-                    : new Either<int>(TestError)));
+            m.Setup(x => x.Identify(It.Is<string>(a => a == Alias)))
+                .Returns(id.HasValue
+                    ? Observable.Return(id.Value)
+                    : Observable.Throw<int>(TestException));
 
             return m;
         }
 
-        Mock<IRepository<Account, Guid>> Repo(Account user, bool commits)
+        static Guid AccountId { get; } = Guid.NewGuid();
+        Mock<IRepository<Account, Guid>> Repo(
+            Account user,
+            bool commits,
+            IScheduler s)
         {
             var m = new Mock<IRepository<Account, Guid>>();
             m.Setup(x => x.Find(It.IsAny<Guid>()))
-                .Returns(Task.FromResult(user != null
-                    ? new Either<Account>(user)
-                    : new Either<Account>(TestError)));
-            
+                .Returns(user != null
+                    ? Observable.Return(user, s)
+                    : Observable.Throw<Account>(TestException));
+
             m.Setup(x => x.Commit())
-                .Callback(() => 
-                { 
-                    if (user != null)
-                        ExpectedId = user.TraderaUsers.Select(x => x.Consent.Id).Single(); 
-                })
-                .Returns(Task.FromResult(commits
-                    ? new Either<int>(1)
-                    : new Either<int>(TestError)));
+                .Returns(commits
+                    ? Observable.Return(1, s)
+                    : Observable.Throw<int>(TestException));
 
             return m;
         }
-        static string Alias = "Test";
-        static Guid AppuserId { get; } = Guid.NewGuid();
-        static Account AppUser { get; } = new Account { Id = AppuserId };
-        static Dictionary<string, TestCase> TestCases = new Dictionary<string, TestCase>
-        {
-            ["HandleNotOnRecord"] = new TestCase
-            {
-                Input = new Input
-                {
-                    OnOurRecords = (null, false),
-                    OnTraderaRecords = null,
-                },
-                Output = new Output
-                {
-                    Result = new Either<string>(TestError),
-                    CalledTradera = 0
-                }
-            },
-            ["AlreadyAdded"] = new TestCase
-            {
-                Input = new Input
-                {
-                    OnOurRecords = (new Account 
-                    { 
-                        Id = AppuserId,
-                        TraderaUsers = new [] { new TraderaUser { Alias = Alias }}.ToList() 
-                    }, false),
-                    OnTraderaRecords = 1,
-                },
-                Output = new Output
-                {
-                    Result = new Either<string>(TestError),
-                    CalledTradera = 0
-                }
-            },
-            ["NotOnTraderaRecord"] = new TestCase
-            {
-                Input = new Input
-                {
-                    OnOurRecords = (new Account 
-                    { 
-                        Id = AppuserId 
-                    }, true),
-                    OnTraderaRecords = null,
-                },
-                Output = new Output
-                {
-                    Result = new Either<string>(TestError),
-                    CalledTradera = 1
-                }
-            },
-            ["OnTraderaRecord"] = new TestCase
-            {
-                Input = new Input
-                {
-                    OnOurRecords = (new Account
-                    {
-                        Id = AppuserId
-                    }, true),
-                    OnTraderaRecords = 1
-                },
-                Output = new Output
-                {
-                    Result = new Either<string>(""),
-                    CalledTradera = 1
-                }
-            },
-            ["CannotSave"] = new TestCase
-            {
-                Input = new Input
-                {
-                    OnOurRecords = (new Account
-                    {
-                        Id = AppuserId
-                    }, false),
-                    OnTraderaRecords = 1
-                },
-                Output = new Output
-                {
-                    Result = new Either<string>(TestError),
-                    CalledTradera = 1
-                }
-            }
-        };
 
-        Guid ExpectedId {get;set;}
+        static TraderaUser GetTraderaUser(Account a, int id, string alias) =>
+            a.TraderaUsers.Single(x => x.Id == id && x.Alias == alias);
 
-        [DataRow("HandleNotOnRecord")]
-        [DataRow("AlreadyAdded")]
-        [DataRow("NotOnTraderaRecord")]
-        [DataRow("OnTraderaRecord")]
-        [DataRow("CannotSave")]
         [TestMethod]
-        public async Task AddTraderaUser(string t)
+        public void AddTraderaUser()
         {
-            var c = TestCases[t];
+            var s = new TestScheduler();
+            var account = new Account { Id = AccountId };
+            var repo = Repo(account, true, s);
+            var soap = Soap(id);
 
-            var our = c.Input.OnOurRecords;
-            var tradera = c.Input.OnTraderaRecords;
-            var soap = Soap(tradera);
-            var a = await Sut.AddTraderaUser(
-                users: Repo(our.user, our.commits).Object,
-                soap: soap.Object,
-                claim: AppuserId.ToString(),
-                alias: Alias);
+            var a = s.LetRun(
+                () => Sut.AddTraderaUser(repo.Object, soap.Object, AccountId.ToString(), Alias));
 
-            if (c.Output.Result.IsError)
-            {
-                Assert.IsTrue(a.IsError);
-                soap.Verify(
-                    x => x.Identify(It.Is<string>(y => y == Alias)),
-                    Times.Exactly(c.Output.CalledTradera));
-            }
-            else
-            {
-                Assert.IsFalse(a.IsError);
-                Assert.IsTrue(ExpectedId.ToString().Equals(a.Result), $"e: {c.Output.Result.Result} a: {a.Result}");
-                soap.Verify(
-                    x => x.Identify(It.Is<string>(y => y == Alias)),
-                    Times.Exactly(c.Output.CalledTradera));
-            }
+            var r = a.GetValues().Single();
+            var recorded = GetTraderaUser(account, id, Alias);
+
+            Assert.AreEqual(recorded.Consent.Id.ToString(), r);
+            repo.Verify(x => x.Commit(), Times.Once);
         }
 
-        static string alias = "test";
         static int id = 1;
         static Guid requestId = Guid.NewGuid();
-        static Guid account = Guid.NewGuid();
-        Account OnRecord = new Account
+
+        Account AccountRecord() => new Account
         {
-            Id = account,
-            TraderaUsers = new [] 
+            Id = AccountId,
+            TraderaUsers = new[]
             {
                 new TraderaUser
                 {
-                    Alias = alias,
+                    Alias = Alias,
                     Id = id,
                     Consent = new TraderaConsent { Id = requestId }
                 }
             }.ToList()
         };
 
-        
+        static TraderaConsent ConsentRecord(Account a) => a.TraderaUsers.Single().Consent;
 
         static TraderaConsent Expected = new TraderaConsent
         {
@@ -225,37 +108,48 @@ namespace unit
             var m = new Mock<IGetTraderaConsentCalls>();
 
             m.Setup(x => x.FetchToken(
-                It.Is<int>(i => i == id), 
+                It.Is<int>(i => i == id),
                 It.Is<string>(t => t == requestId.ToString())))
                 .Returns(hasToken
-                    ? Task.FromResult(new Either<(string, DateTimeOffset)>((Expected.Token, Expected.Expires.Value)))
-                    : Task.FromResult(new Either<(string, DateTimeOffset)>(TestError)));
+                    ? Observable.Return(new Token(Expected.Token, Expected.Expires.Value))
+                    : Observable.Throw<Token>(TestException));
 
-            return m.Object;    
+            return m.Object;
         }
 
         [TestMethod]
-        public async Task SuccessfulFetchConsentShould()
+        public void SuccessfulFetchConsentShould()
         {
-            var repo = Repo(OnRecord, true);
-            var a = await Sut.FetchConsent(repo.Object, FetchCall(true), account.ToString(), alias);
+            var s = new TestScheduler();
+            var account = AccountRecord();
+            var repo = Repo(account, true, s);
 
-            Assert.IsFalse(a.IsError, $"Not expecting error {a.Error?.Code}");
-            Assert.AreEqual(a.Result, Expected.Expires, $"e: {Expected.Expires} a: {a.Result}");
+            var a = s.LetRun(() => 
+                Sut.FetchConsent(repo.Object, FetchCall(true), AccountId.ToString(), Alias));
 
-            var update = OnRecord.ConsentForAlias(alias);
-            Assert.IsTrue(update.Token == Expected.Token && update.Expires == Expected.Expires);
+            var r = a.GetValues().Single();
+            var record = ConsentRecord(account);
+
+            Assert.IsTrue(Expected.Token == record.Token && Expected.Expires == record.Expires);
             repo.Verify(x => x.Commit(), Times.Once);
         }
 
         [TestMethod]
-        public async Task FailedFetchConsentShould()
+        public void ShouldThrowOnAliasNotFoundOnAccount()
         {
-            var repo = Repo(OnRecord, true);
-            var a = await Sut.FetchConsent(repo.Object, FetchCall(false), account.ToString(), alias);
+            var s = new TestScheduler();
+            var soap = new Mock<IGetTraderaConsentCalls>();
+            var account = AccountRecord();
+            var repo = Repo(account, true, s).Object;
 
-            Assert.IsTrue(a.IsError, $"Expected error");
-            repo.Verify(x => x.Commit(), Times.Never);
+            var a = s.LetRun(() => 
+                Sut.FetchConsent(repo, soap.Object, AccountId.ToString(), NotAlias));
+
+            (bool errored, Exception e) = a.Errored();
+
+            Assert.IsTrue(errored && e is Error, 
+                $"e: true and Error a: {errored} {e?.GetType().ToString()}");
+            soap.Verify(x => x.FetchToken(It.IsAny<int>(), It.IsAny<string>()), Times.Never);
         }
     }
 }
