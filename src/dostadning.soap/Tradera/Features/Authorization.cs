@@ -12,24 +12,16 @@ using dostadning.domain.features;
 
 namespace dostadning.soap.tradera.feature
 {
-    public sealed class GetTraderaConsent : IGetTraderaConsentCalls
+    public sealed class GetAuthorization : 
+        SoapClient<PublicServiceSoapClient>,
+        IAuthorizationCalls
     {
-        public static IGetTraderaConsentCalls Init(AppIdentity app) =>
-            new GetTraderaConsent(new PublicServiceSoapClient(EndpointConfiguration.PublicServiceSoap12), app);
-        PublicServiceSoapClient Client { get; }
-        AppIdentity App { get; }
-
-        AuthenticationHeader Auth => new AuthenticationHeader
-        {
-            AppId = App.Id,
-            AppKey = App.Key
-        };
-
-        static ConfigurationHeader Conf => new ConfigurationHeader();
-        private GetTraderaConsent(
+        public static IAuthorizationCalls Init(AppIdentity app) =>
+            new GetAuthorization(new PublicServiceSoapClient(EndpointConfiguration.PublicServiceSoap12), app);
+        
+        private GetAuthorization(
             PublicServiceSoapClient c,
-            AppIdentity app)
-        { Client = c; App = app; }
+            AppIdentity app) : base(c, app) {} 
 
         static IObservable<int> GetId(GetUserByAliasResponse r) => 
             r.GetUserByAliasResult != null

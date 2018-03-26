@@ -25,9 +25,9 @@ namespace unit
 
         static string Alias = "Test";
         static string NotAlias = "NotAlias";
-        static Mock<IGetTraderaConsentCalls> Soap(int? id)
+        static Mock<IAuthorizationCalls> Soap(int? id)
         {
-            var m = new Mock<IGetTraderaConsentCalls>();
+            var m = new Mock<IAuthorizationCalls>();
             m.Setup(x => x.Identify(It.Is<string>(a => a == Alias)))
                 .Returns(id.HasValue
                     ? Observable.Return(id.Value)
@@ -103,9 +103,9 @@ namespace unit
             Expires = new DateTimeOffset(2018, 12, 24, 15, 0, 0, 0, TimeSpan.Zero)
         };
 
-        static IGetTraderaConsentCalls FetchCall(bool hasToken)
+        static IAuthorizationCalls FetchCall(bool hasToken)
         {
-            var m = new Mock<IGetTraderaConsentCalls>();
+            var m = new Mock<IAuthorizationCalls>();
 
             m.Setup(x => x.FetchToken(
                 It.Is<int>(i => i == id),
@@ -138,7 +138,7 @@ namespace unit
         public void ShouldThrowOnAliasNotFoundOnAccount()
         {
             var s = new TestScheduler();
-            var soap = new Mock<IGetTraderaConsentCalls>();
+            var soap = new Mock<IAuthorizationCalls>();
             var account = AccountRecord();
             var repo = Repo(account, true, s).Object;
 

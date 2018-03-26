@@ -14,7 +14,7 @@ namespace dostadning.domain.features
     public static class GetTraderaConsentFeature
     {
         public static IObservable<int> PairWithId(
-            IGetTraderaConsentCalls soap,
+            IAuthorizationCalls soap,
             string alias) => soap.Identify(alias);
 
         static Account Associate(
@@ -34,7 +34,7 @@ namespace dostadning.domain.features
         static TraderaConsent Init(Guid id) => new TraderaConsent { Id = id };
         public static IObservable<string> AddTraderaUser(
             IRepository<Account, Guid> users,
-            IGetTraderaConsentCalls soap,
+            IAuthorizationCalls soap,
             string claim,
             string alias) =>
                 from id in soap.Identify(alias)
@@ -51,7 +51,7 @@ namespace dostadning.domain.features
 
         public static IObservable<DateTimeOffset> FetchConsent(
             IRepository<Account, Guid> users,
-            IGetTraderaConsentCalls soap,
+            IAuthorizationCalls soap,
             string claim,
             string alias) =>
                 from u in users.Find(Guid.Parse(claim)).Select(x => x.TraderaUser(alias))

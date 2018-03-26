@@ -7,6 +7,8 @@ open System
 open System.Reactive.Linq
 open dostadning.soap.tradera.feature
 open dostadning.domain.result
+open System.Collections
+open dostadning.domain.service.tradera
 
 [<Verb("Create", HelpText = "Create an account")>]
 type CreateOpts = {
@@ -14,6 +16,21 @@ type CreateOpts = {
     alias : string
 }
 let Admitlog id = printfn "Created account with id: %s" id
+
+[<Verb("Lookups", HelpText = "Fetch lookups for items through tradera api")>]
+type LookupOpts = {
+    [<Value(0)>]
+    unused : string
+}
+let Lookuplog (l : Generic.IEnumerable<Lookup>) =  String.Join(Environment.NewLine, Seq.map string l) |> printfn "%s"
+
+[<Verb("CompareWatches", HelpText = "Prints a timestamp fetched from tradera and one made locally")>]
+type CompareWatchesOpts = {
+    [<Value(0)>]
+    unused : string
+}
+
+let CompareWatcheslog t = (string t) |> printfn "%s" 
 
 [<Verb("GetId", HelpText = "fetch corresponding traderaId for [alias]")>]
 type FetchIdOpts = {
@@ -47,7 +64,8 @@ type FetchConsentOpts = {
 let FetchConsentLog alias exp = printfn "We have consent for traderauser %s until %s" alias (string exp)
 
 let users = new Pgres() |> Repos.Accounts
-let soapClient = GetTraderaConsent.Init appId
+let soapAuth = GetAuthorization.Init appId
+let soapLookups = GetLookups.Init appId
 
 let select (f : 'a -> 'b) (o : IObservable<'a>) = Observable.Select(o, f)
 let log lr (le : Exception -> Unit) o = Observable.Do(o, lr, le) 
@@ -64,17 +82,21 @@ let run = Observable.Wait
 
 [<EntryPoint>]
 let main argv =
-    let res = Parser.Default.ParseArguments<CreateOpts, FetchIdOpts, AddTraderaUserOpts, FetchConsentOpts> argv
+    let res = Parser.Default.ParseArguments<CreateOpts, LookupOpts, FetchIdOpts, AddTraderaUserOpts, FetchConsentOpts, CompareWatchesOpts> argv
     match res with
     | :? CommandLine.Parsed<obj> as command ->
          match command.Value with
          | :? CreateOpts -> LogResult (Action<string> Admitlog) Errorlog (fun () -> AccountFeature.Create users) 
                             |> run
-         | :? FetchIdOpts as opts -> LogResult (Action<int> (GetIdLog opts.traderaalias)) Errorlog (fun () -> GetTraderaConsentFeature.PairWithId(soapClient, opts.traderaalias))
+         | :? LookupOpts -> LogResult (Action<Generic.IEnumerable<Lookup>> Lookuplog) Errorlog (fun () -> LookupFeatures.GetLookups soapLookups)
+                            |> run
+         | :? CompareWatchesOpts -> LogResult (Action<WatchComparison> CompareWatcheslog) Errorlog (fun () -> LookupFeatures.CompareWatches soapLookups)
+                                    |> run
+         | :? FetchIdOpts as opts -> LogResult (Action<int> (GetIdLog opts.traderaalias)) Errorlog (fun () -> GetTraderaConsentFeature.PairWithId(soapAuth, opts.traderaalias))
                                      |> run
-         | :? AddTraderaUserOpts as opts -> LogResult (Action<string> AddTraderauserLog) Errorlog (fun() -> GetTraderaConsentFeature.AddTraderaUser(users, soapClient, opts.account, opts.alias))
+         | :? AddTraderaUserOpts as opts -> LogResult (Action<string> AddTraderauserLog) Errorlog (fun() -> GetTraderaConsentFeature.AddTraderaUser(users, soapAuth, opts.account, opts.alias))
                                             |> run
-         | :? FetchConsentOpts as opts -> LogResult (Action<DateTimeOffset> (FetchConsentLog opts.traderaalias)) Errorlog (fun() -> GetTraderaConsentFeature.FetchConsent(users, soapClient, opts.account, opts.traderaalias))
+         | :? FetchConsentOpts as opts -> LogResult (Action<DateTimeOffset> (FetchConsentLog opts.traderaalias)) Errorlog (fun() -> GetTraderaConsentFeature.FetchConsent(users, soapAuth, opts.account, opts.traderaalias))
                                           |> run
          | _ -> -1
     | :? CommandLine.NotParsed<obj> -> printfn "notparsed"

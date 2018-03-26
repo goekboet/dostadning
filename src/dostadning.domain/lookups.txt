@@ -1,0 +1,43 @@
+ExpoItemTypes:
+ID    Description
+5     Highlight (10kr) 10
+6     Utvalt Objekt (45kr) 45
+
+AcceptedBidderType:
+ID    Description
+1     Inom Sverige
+2     Inom Norden
+3     Internationellt
+
+VAT:
+ID    Description
+0     0% VAT
+6     6% VAT
+12    12% VAT
+25    25% VAT
+
+ItemAttributes:
+ID    Description
+1     Ny
+2     Begagnad
+
+PaymentTypes:
+ID    Description
+4     Överföring till mitt bankkonto
+8     PlusGiro / Bankgiro
+16    Mot postförskott
+32    Kontant vid avhämtning
+64    Paypal
+512   Faktura
+4096  Swish
+8192  Klarna
+16384 Braintree
+
+ShippingTypes:
+ID    Description
+1     Posten
+2     DHL
+3     Bussgods
+6     Annat fraktsätt
+7     Schenker
+8     Avhämtning

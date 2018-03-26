@@ -4,7 +4,7 @@ using dostadning.domain.result;
 
 namespace dostadning.domain.service.tradera
 {
-    public struct Token
+    public sealed class Token
     {
         public Token(string id, DateTimeOffset exp)
         {
@@ -15,7 +15,7 @@ namespace dostadning.domain.service.tradera
         public DateTimeOffset Expires { get; }
     }
 
-    public interface IGetTraderaConsentCalls
+    public interface IAuthorizationCalls
     {
         /// <summary>
         /// Fetch the integer Id that is associated with a tradera-alias.
