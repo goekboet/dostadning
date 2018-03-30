@@ -30,7 +30,7 @@ namespace dostadning.soap.tradera.feature
                     new Error("No traderauser with that alias according to tradera public service."));
 
         public IObservable<int> Identify(string alias) => 
-            from r in Observable.FromAsync(() => Client.GetUserByAliasAsync(Auth, Conf, alias))
+            from r in Observable.FromAsync(() => Client.GetUserByAliasAsync(AuthN, Conf, alias))
             from id in GetId(r)
             select id;
 
@@ -45,7 +45,7 @@ namespace dostadning.soap.tradera.feature
         public IObservable<Our.Token> FetchToken(
             int id, 
             string consentId) => Observable
-                .FromAsync(() => Client.FetchTokenAsync(Auth, Conf, id, consentId))
+                .FromAsync(() => Client.FetchTokenAsync(AuthN, Conf, id, consentId))
                 .SelectMany(Token)
                 .Catch<Our.Token, Error>(_ => Observable.Throw<Our.Token>(
                         new Error($"TraderauserId {id} has no token for consentId {consentId}")))

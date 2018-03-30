@@ -42,7 +42,7 @@ namespace dostadning.soap.tradera.feature
                 : throw ResultWasNull;   
 
         public IObservable<IEnumerable<Lookup>> GetItemRequestLookups() =>
-            Observable.FromAsync(() => Client.GetItemFieldValuesAsync(Auth, Conf))
+            Observable.FromAsync(() => Client.GetItemFieldValuesAsync(AuthN, Conf))
                 .Select(MapToOur)
                 .Errorcontext("ItemRequestType");
 
@@ -53,25 +53,25 @@ namespace dostadning.soap.tradera.feature
 
         
         public IObservable<IEnumerable<Lookup>> GetAcceptedBidderTypes() =>
-            Observable.FromAsync(() => Client.GetAcceptedBidderTypesAsync(Auth, Conf))
+            Observable.FromAsync(() => Client.GetAcceptedBidderTypesAsync(AuthN, Conf))
                 .Select(x => x.GetAcceptedBidderTypesResult)
                 .Select(ToLookup("AcceptedBidderType"))
                 .Errorcontext("AcceptedBidderType");
 
         public IObservable<IEnumerable<Lookup>> GetExpoItemTypes() => 
-            Observable.FromAsync(() => Client.GetExpoItemTypesAsync(Auth, Conf))
+            Observable.FromAsync(() => Client.GetExpoItemTypesAsync(AuthN, Conf))
                 .Select(x => x.GetExpoItemTypesResult)
                 .Select(ToLookup("ExpoItemTypes"))
                 .Errorcontext("ExpoItemTypes");
 
         public IObservable<IEnumerable<Lookup>> GetItemTypes() =>
-            Observable.FromAsync(() => Client.GetItemTypesAsync(Auth, Conf))
+            Observable.FromAsync(() => Client.GetItemTypesAsync(AuthN, Conf))
                 .Select(x => x.GetItemTypesResult)
                 .Select(ToLookup("ItemTypes"))
                 .Errorcontext("ItemTypes");
 
         public IObservable<DateTime> ServerTime() =>
-            Observable.FromAsync(() => Client.GetOfficalTimeAsync(Auth, Conf))
+            Observable.FromAsync(() => Client.GetOfficalTimeAsync(AuthN, Conf))
             .Select(x => x.GetOfficalTimeResult);
     }
 

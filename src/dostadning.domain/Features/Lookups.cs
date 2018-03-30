@@ -31,7 +31,8 @@ namespace dostadning.domain.features
             ILookupCalls soap) => Observable.Merge(
             soap.GetItemRequestLookups(),
             soap.GetAcceptedBidderTypes(),
-            soap.GetExpoItemTypes())
+            soap.GetExpoItemTypes(),
+            soap.GetItemTypes())
             .Aggregate(Enumerable.Concat);
     }
 }

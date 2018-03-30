@@ -13,7 +13,7 @@ namespace dostadning.soap.tradera
         protected T Client { get; }
         protected AppIdentity App { get; }
 
-        protected AuthenticationHeader Auth => new AuthenticationHeader
+        protected AuthenticationHeader AuthN => new AuthenticationHeader
         {
             AppId = App.Id,
             AppKey = App.Key

@@ -32,6 +32,18 @@ type CompareWatchesOpts = {
 
 let CompareWatcheslog t = (string t) |> printfn "%s" 
 
+[<Verb("CreateAuction", HelpText = "Creates an Auction")>]
+type CreateAuctionOpts = {
+    [<Value(0)>]
+    id : int
+    [<Value(1)>]
+    token : string
+}
+
+let logr m = printf "%s" (string m)
+
+
+
 [<Verb("GetId", HelpText = "fetch corresponding traderaId for [alias]")>]
 type FetchIdOpts = {
     [<Value(0)>]
@@ -66,6 +78,7 @@ let FetchConsentLog alias exp = printfn "We have consent for traderauser %s unti
 let users = new Pgres() |> Repos.Accounts
 let soapAuth = GetAuthorization.Init appId
 let soapLookups = GetLookups.Init appId
+let soapAuctions = AuctionSoapCalls.Init appId
 
 let select (f : 'a -> 'b) (o : IObservable<'a>) = Observable.Select(o, f)
 let log lr (le : Exception -> Unit) o = Observable.Do(o, lr, le) 
@@ -77,15 +90,38 @@ let LogResult lr le r =
     |> catch (fun _ -> Observable.Return 0)
 
 let Errorlog (e : Exception) = printfn "msg: %s trace: %s" e.Message e.StackTrace 
-
 let run = Observable.Wait
+
+let Consent id t = new Consent(id, t)
+
+
+let Lot = new Lot(
+            Title="title",
+            Description= "Testdescription",
+            ItemAttributes = [| 1 |],
+            Duration = 14,
+            Restarts = 1,
+            StartPrice = 100, //StartPrice < ReservePrice < BytItNowPrice
+            ReservePrice = 101,
+            BuyItNowPrice = 102,
+            VAT = 25,
+            AcceptedBidderId = 1,
+            PaymentOptionIds = [| 8192 |],
+            ShippingCondition = "Ok",
+            PaymentCondition = "Ok")
+           
+
+
+//let runCreateAuction = LogResult (Action<AuctionHandle> logr) Errorlog (fun () -> AuctionFeature.CreateAuction(soapAuctions, Consent, Lot))
 
 [<EntryPoint>]
 let main argv =
-    let res = Parser.Default.ParseArguments<CreateOpts, LookupOpts, FetchIdOpts, AddTraderaUserOpts, FetchConsentOpts, CompareWatchesOpts> argv
+    let res = Parser.Default.ParseArguments<CreateOpts, LookupOpts, FetchIdOpts, AddTraderaUserOpts, FetchConsentOpts, CompareWatchesOpts, CreateAuctionOpts> argv
     match res with
     | :? CommandLine.Parsed<obj> as command ->
          match command.Value with
+         | :? CreateAuctionOpts as opts -> LogResult (Action<AuctionHandle> logr) Errorlog (fun () -> AuctionFeature.CreateAuction(soapAuctions, new Consent(opts.id, opts.token), Lot))
+                                            |> run
          | :? CreateOpts -> LogResult (Action<string> Admitlog) Errorlog (fun () -> AccountFeature.Create users) 
                             |> run
          | :? LookupOpts -> LogResult (Action<Generic.IEnumerable<Lookup>> Lookuplog) Errorlog (fun () -> LookupFeatures.GetLookups soapLookups)
