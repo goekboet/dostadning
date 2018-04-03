@@ -25,10 +25,7 @@ namespace dostadning.domain.features
         public static IObservable<AuctionHandle> CreateAuction(
             IAuction soap,
             Consent c,
-            Lot l) => soap.AddTestItem(c, l)
-            .Do(
-                x => Console.WriteLine(x.ToString()), 
-                e => Console.WriteLine($"error type: {e.GetType().FullName}"));
+            Lot l) => soap.AddTestItem(c, l);
 
     }
 }
