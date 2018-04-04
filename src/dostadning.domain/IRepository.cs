@@ -1,18 +1,17 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using dostadning.domain.ourdata;
-using dostadning.domain.result;
 
-namespace dostadning.domain.ourdata
+namespace dostadning.domain
 {
-    public interface IRepository<T, TKey> : IDisposable 
+    public interface IRepository<T, TKey> : 
+        IQuery<T>, 
+        IDataCommand<T, TKey>, 
+        IDisposable { }
+
+    public interface IDataCommand<T, TKey>
     {
-        /// <summary>
-        /// Query the datastore with linq to sql
-        /// </summary>
-        /// <returns>An IQueryable implementention for the datastore</returns>
-        IQueryable<T> Store { get; }
         /// <summary>
         /// Prepare an addition of data to the underlying datastore. 
         /// </summary>
@@ -26,6 +25,17 @@ namespace dostadning.domain.ourdata
         /// </summary>
         /// <returns>either the number of rows affected by the command or an error</returns>
         IObservable<int> Commit();
+    }
+
+    public interface IQuery<T>
+    {
+        /// <summary>
+        /// Given a linq to sql-query in an IQueryable, return the result of the query on the 
+        /// underlying datastore as an observable.
+        /// </summary>
+        /// <param name="q">A linq2sql query</param>
+        /// <returns>An obseavable of the result</returns>
+        IObservable<IEnumerable<T2>> Query<T2>(Func<IQueryable<T>, IQueryable<T2>> q);
     }
 
 }

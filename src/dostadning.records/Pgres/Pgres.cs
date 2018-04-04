@@ -1,13 +1,11 @@
 ﻿using System;
-using System.Reactive.Linq;
-using System.Threading.Tasks;
-using dostadning.domain.ourdata;
-using dostadning.domain.result;
+using dostadning.domain;
+using dostadning.domain.account;
 using Microsoft.EntityFrameworkCore;
 
 namespace dostadning.records.pgres
 {
-    
+
     public class Pgres : DbContext
     {
         public DbSet<Account> Accounts { get; set; }

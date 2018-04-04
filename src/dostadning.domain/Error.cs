@@ -1,4 +1,4 @@
-namespace dostadning.domain.features
+namespace dostadning.domain
 {
     public class Error : System.Exception
     {

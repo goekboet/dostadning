@@ -2,9 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reactive.Linq;
-using dostadning.domain.features;
-using dostadning.domain.result;
-using dostadning.domain.service.tradera;
+using dostadning.domain;
+using dostadning.domain.lookups;
 using dostadning.soap.tradera.publicservice;
 using static dostadning.soap.tradera.publicservice.PublicServiceSoapClient;
 

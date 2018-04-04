@@ -1,7 +1,8 @@
 using System;
 using System.Collections.Generic;
+using dostadning.domain.seller;
 
-namespace dostadning.domain.ourdata
+namespace dostadning.domain.account
 {
     /// <summary>
     /// An Account represents a claim to dostadning features and data

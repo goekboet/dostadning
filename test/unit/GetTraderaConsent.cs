@@ -1,20 +1,14 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
-using dostadning.domain.service.tradera;
-using dostadning.domain.features;
-using dostadning.domain.ourdata;
-using dostadning.domain.result;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
-
-using Sut = dostadning.domain.features.GetTraderaConsentFeature;
-using Dto = dostadning.domain.features;
-using Our = dostadning.domain.ourdata;
 using System.Reactive.Linq;
 using Microsoft.Reactive.Testing;
 using System.Reactive.Concurrency;
+using dostadning.domain.seller;
+using dostadning.domain;
+using dostadning.domain.account;
+using Sut = dostadning.domain.seller.SellerFuntions;
 
 namespace unit
 {
@@ -24,7 +18,6 @@ namespace unit
         static Exception TestException { get; } = new ApplicationException("");
 
         static string Alias = "Test";
-        static string NotAlias = "NotAlias";
         static Mock<IAuthorizationCalls> Soap(int? id)
         {
             var m = new Mock<IAuthorizationCalls>();
@@ -36,7 +29,7 @@ namespace unit
             return m;
         }
 
-        static Guid AccountId { get; } = Guid.NewGuid();
+        
         Mock<IRepository<Account, Guid>> Repo(
             Account user,
             bool commits,
@@ -56,6 +49,8 @@ namespace unit
             return m;
         }
 
+        static AppIdentity TestIdentity => new AppIdentity(0, "", "");
+
         static TraderaUser GetTraderaUser(Account a, int id, string alias) =>
             a.TraderaUsers.Single(x => x.Id == id && x.Alias == alias);
 
@@ -68,17 +63,21 @@ namespace unit
             var soap = Soap(id);
 
             var a = s.LetRun(
-                () => Sut.AddTraderaUser(repo.Object, soap.Object, AccountId.ToString(), Alias));
+                () => Sut.AddTraderaUser(repo.Object, soap.Object, TestIdentity, AccountId, Alias));
 
             var r = a.GetValues().Single();
             var recorded = GetTraderaUser(account, id, Alias);
 
-            Assert.AreEqual(recorded.Consent.Id.ToString(), r);
+            Assert.IsTrue(r.ConsentId == recorded.Consent.Id);
             repo.Verify(x => x.Commit(), Times.Once);
         }
 
+        static Guid AccountId { get; } = Guid.NewGuid();
         static int id = 1;
         static Guid requestId = Guid.NewGuid();
+
+        static Seller Seller => new Seller(AccountId, id);
+        static Seller NoSeller => new Seller(AccountId, 0);
 
         Account AccountRecord() => new Account
         {
@@ -125,7 +124,7 @@ namespace unit
             var repo = Repo(account, true, s);
 
             var a = s.LetRun(() => 
-                Sut.FetchConsent(repo.Object, FetchCall(true), AccountId.ToString(), Alias));
+                Sut.FetchConsent(repo.Object, FetchCall(true), Seller, requestId));
 
             var r = a.GetValues().Single();
             var record = ConsentRecord(account);
@@ -143,7 +142,7 @@ namespace unit
             var repo = Repo(account, true, s).Object;
 
             var a = s.LetRun(() => 
-                Sut.FetchConsent(repo, soap.Object, AccountId.ToString(), NotAlias));
+                Sut.FetchConsent(repo, soap.Object, NoSeller, Guid.Empty));
 
             (bool errored, Exception e) = a.Errored();
 

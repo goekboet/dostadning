@@ -1,9 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using dostadning.domain.features;
 
-namespace dostadning.domain.service.tradera
+namespace dostadning.domain.lookups
 {
     public sealed class Lookup : IEquatable<Lookup>
     {

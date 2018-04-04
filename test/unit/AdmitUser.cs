@@ -3,12 +3,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reactive.Concurrency;
 using System.Reactive.Linq;
-using dostadning.domain.ourdata;
+using dostadning.domain;
+using dostadning.domain.account;
 using Microsoft.Reactive.Testing;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
 
-using Sut = dostadning.domain.features.AccountFeature;
+using Sut = dostadning.domain.account.AccountFeature;
 
 namespace unit
 {

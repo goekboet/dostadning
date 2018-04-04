@@ -1,4 +1,4 @@
-using dostadning.domain.result;
+using dostadning.domain;
 using dostadning.soap.tradera.publicservice;
 
 namespace dostadning.soap.tradera

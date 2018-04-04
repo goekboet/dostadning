@@ -1,5 +1,5 @@
 using System;
-using dostadning.domain.ourdata;
+using dostadning.domain.seller;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 

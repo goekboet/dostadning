@@ -1,14 +1,12 @@
 using System;
-using System.Threading.Tasks;
-using dostadning.domain.service.tradera;
-using dostadning.domain.result;
-using dostadning.soap.tradera.publicservice;
 using static dostadning.soap.tradera.publicservice.PublicServiceSoapClient;
 using System.Reactive.Linq;
 
-using Our = dostadning.domain.service.tradera;
+using Our = dostadning.domain.seller;
 using Their = dostadning.soap.tradera.publicservice;
-using dostadning.domain.features;
+using dostadning.soap.tradera.publicservice;
+using dostadning.domain.seller;
+using dostadning.domain;
 
 namespace dostadning.soap.tradera.feature
 {

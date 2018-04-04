@@ -2,23 +2,22 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reactive.Linq;
-using dostadning.domain.service.tradera;
 
-namespace dostadning.domain.features
+namespace dostadning.domain.lookups
 {
     public struct WatchComparison
     {
-        public WatchComparison(DateTime tradera, DateTimeOffset us)
+        public WatchComparison(DateTime other, DateTimeOffset us)
         {
-            Tradera = tradera;
+            Other = other;
             Us = us;
         }
-        public DateTime Tradera { get; }
+        public DateTime Other { get; }
         public DateTimeOffset Us { get; }
 
         static string n => Environment.NewLine;
         public override string ToString() => 
-            $"Tradera: {Tradera} kind: {Tradera.Kind} {n}" +
+            $"Tradera: {Other} kind: {Other.Kind} {n}" +
             $"Us: {Us} timezone: {TimeZoneInfo.Local}";
     }
 

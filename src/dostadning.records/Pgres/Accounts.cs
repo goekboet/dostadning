@@ -1,8 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reactive.Linq;
-using dostadning.domain.features;
-using dostadning.domain.ourdata;
+using dostadning.domain;
+using dostadning.domain.account;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -14,7 +15,7 @@ namespace dostadning.records.pgres
     {
         public Accounts(Pgres ctx) : base(ctx) { }
 
-        public IQueryable<Account> Store => Db.Accounts.AsNoTracking();
+        private IQueryable<Account> Store => Db.Accounts.AsNoTracking();
 
         public IRepository<Account, Guid> Add(Account t) { Db.Add(t); return this; }
 
@@ -29,6 +30,9 @@ namespace dostadning.records.pgres
             .Catch<int, DbUpdateException>(e => 
                 Observable.Throw<int>(new Error($"Pgres failed to update Account.", e))
             );
+
+        public IObservable<IEnumerable<T2>> Query<T2>(Func<IQueryable<Account>, IQueryable<T2>> q) => 
+            Observable.FromAsync(() => q(Store).ToArrayAsync());
     }
 
     public class AccountsTable : IEntityTypeConfiguration<Account>

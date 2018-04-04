@@ -1,8 +1,7 @@
 using System;
 using System.Threading.Tasks;
-using dostadning.domain.result;
 
-namespace dostadning.domain.service.tradera
+namespace dostadning.domain.seller
 {
     public sealed class Token
     {

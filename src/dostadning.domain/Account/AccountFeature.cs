@@ -1,11 +1,8 @@
 using System;
 using System.Linq;
 using System.Reactive.Linq;
-using System.Threading.Tasks;
-using dostadning.domain.ourdata;
-using dostadning.domain.result;
 
-namespace dostadning.domain.features
+namespace dostadning.domain.account
 {
     public interface IAccount
     {
