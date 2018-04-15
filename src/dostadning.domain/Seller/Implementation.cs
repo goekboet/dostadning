@@ -116,21 +116,20 @@ namespace dostadning.domain.seller
                 ;
 
         public static IObservable<Consent> FetchConsent(
-            IDataCommand<Account, Guid> users,
+            IDataCommand<TraderaUser, Seller> users,
             IAuthorizationCalls soap,
-            Seller s,
-            Guid consent) =>
-                from u in users.Find(s.Account).Select(x => x.TraderaUser(s.TraderaUser))
+            Seller s) =>
+                from u in users.Find(s)
                 from t in soap.FetchToken(u.Id, u.Consent.Id.ToString())
-                let exp = u.RecordConsent(t, s.Account)
+                let exp = u.RecordConsent(t, s)
                 from _ in users.Commit()
                 select exp;
-        static Consent RecordConsent(this TraderaUser u, Token t, Guid account)
+        static Consent RecordConsent(this TraderaUser u, Token t, Seller s)
         {
             u.Consent.Token = t.Id;
             u.Consent.Expires = t.Expires;
 
-            return new Consent(new Seller(account, u.Id), t.Id);
+            return new Consent(s, t.Id);
         }
 
         public static TraderaUser TraderaUser(

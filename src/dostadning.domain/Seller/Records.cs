@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using dostadning.domain.auction.record;
 
 namespace dostadning.domain.seller
 {
@@ -26,8 +25,6 @@ namespace dostadning.domain.seller
         /// </summary>
         /// <returns>The consent</returns>
         public TraderaConsent Consent { get; set; }
-
-        public List<Auction> Auctions { get; set; }
     }
 
     /// <summary>

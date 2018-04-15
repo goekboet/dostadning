@@ -9,7 +9,7 @@ namespace dostadning.domain.seller
     public interface ISeller
     {
         IObservable<TraderaAlias> Add(Guid account, string traderaAlias);
-        IObservable<Consent> Confirm(Seller s, Guid consentId);
+        IObservable<Consent> Confirm(Seller s);
         IObservable<IEnumerable<TraderaAlias>> List(Guid account);
         IObservable<Consent> Get(Seller s);
     }
@@ -17,12 +17,14 @@ namespace dostadning.domain.seller
     public class SellerFeature : ISeller
     {
         IRepository<Account, Guid> Repo { get; }
+        IDataCommand<TraderaUser, Seller> Sellers { get; }
         IAuthorizationCalls Soap { get; }
         AppIdentity App { get; }
         Func<DateTimeOffset> Now { get; }
 
         public SellerFeature(
             IRepository<Account, Guid> repo,
+            IDataCommand<TraderaUser, Seller> sellers,
             IAuthorizationCalls soap,
             AppIdentity app,
             Func<DateTimeOffset> now)
@@ -36,8 +38,8 @@ namespace dostadning.domain.seller
         public IObservable<TraderaAlias> Add(Guid account, string traderaAlias) =>
             S.AddTraderaUser(Repo, Soap, App, account, traderaAlias);
 
-        public IObservable<Consent> Confirm(Seller s, Guid consentId) =>
-            S.FetchConsent(Repo, Soap, s, consentId);
+        public IObservable<Consent> Confirm(Seller s) =>
+            S.FetchConsent(Sellers, Soap, s);
 
         public IObservable<IEnumerable<TraderaAlias>> List(Guid account) =>
             S.List(Repo, App, Now(), account);
@@ -56,8 +58,8 @@ namespace dostadning.domain.seller
         public Seller Id { get; }
         public string Token { get; }
 
-        public string n => Environment.NewLine;
-        public override string ToString() => 
+        string n => Environment.NewLine;
+        public override string ToString() =>
             $"Seller: {Id}{n}" +
             $"Consent: {Token}";
     }
@@ -77,7 +79,7 @@ namespace dostadning.domain.seller
         public Guid Account { get; }
         public int TraderaUser { get; }
 
-        public override string ToString() => 
+        public override string ToString() =>
             $"{Account}/{TraderaUser}";
     }
 

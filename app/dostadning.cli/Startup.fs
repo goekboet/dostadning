@@ -5,6 +5,7 @@ open dostadning.records.pgres
 open dostadning.soap.tradera.feature
 open dostadning.domain.seller
 open System
+open dostadning.domain.auction
 
 module Startup =
         let soapAuth = GetAuthorization.Init appId
@@ -12,9 +13,15 @@ module Startup =
         let soapAuctions = AuctionSoapCalls.Init appId
 
         let users = new Pgres() |> Repos.Accounts
+        let sellers = new Pgres() |> Repos.Sellers
 
         let now = Func<DateTimeOffset>(fun () -> DateTimeOffset.Now)
-        let sell = new SellerFeature(users, soapAuth, appId, now) 
+        let sell = new SellerFeature(users, sellers, soapAuth, appId, now)
+
+        let uploadbatch' soap imgs c input =
+            AuctionFeature.UploadBatch(soap, imgs, c, input)
+
+        let uploadbatch imgs c input = uploadbatch' soapAuctions imgs c input
 
         let seller acct id = new Seller(acct, id)
 

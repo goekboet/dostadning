@@ -17,19 +17,13 @@ namespace dostadning.records.pgres
 
         private IQueryable<Account> Store => Db.Accounts.AsNoTracking();
 
-        public IRepository<Account, Guid> Add(Account t) { Db.Add(t); return this; }
+        public IDataCommand<Account, Guid> Add(Account t) { Db.Add(t); return this; }
 
         public IObservable<Account> Find(Guid key) => 
             Observable.FromAsync(() => Db.Accounts
             .Include(x => x.TraderaUsers)
                 .ThenInclude(x => x.Consent)
             .SingleOrDefaultAsync(x => x.Id == key));
-
-        public IObservable<int> Commit() => Observable
-            .FromAsync(() => Db.SaveChangesAsync())
-            .Catch<int, DbUpdateException>(e => 
-                Observable.Throw<int>(new Error($"Pgres failed to update Account.", e))
-            );
 
         public IObservable<IEnumerable<T2>> Query<T2>(Func<IQueryable<Account>, IQueryable<T2>> q) => 
             Observable.FromAsync(() => q(Store).ToArrayAsync());

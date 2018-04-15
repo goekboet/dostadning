@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Reactive;
 using System.Reactive.Linq;
@@ -9,21 +10,54 @@ namespace dostadning.domain.auction
 {
     public struct AuctionHandle
     {
-        public AuctionHandle(int iId, int rId)
+        public AuctionHandle(
+            string lotId,
+            int iId,
+            int rId)
         {
             ItemId = iId;
             RequestId = rId;
+            LotId = lotId;
         }
-
+        /// <summary>
+        /// Identifies the input that initialized the request to begin the Auction.
+        /// </summary>
+        /// <returns>The Lot id</returns>
+        public string LotId { get; }
+        /// <summary>
+        /// Traderas identifier for the auction. Used to query the status of the Auction once it is
+        /// successfully started.
+        /// </summary>
+        /// <returns>the tradera ItemId</returns>
         public int ItemId { get; }
+        /// <summary>
+        /// Identifies the request itself so that we can query the current status of image uploads et.c.
+        /// </summary>
+        /// <returns>The ItemId</returns>
         public int RequestId { get; }
 
         public override string ToString() =>
-        $"ItemId: {ItemId} RequestId: {RequestId}";
+        $"LotId: {LotId} ItemId: {ItemId} RequestId: {RequestId}";
+    }
+
+    public enum Process { Add, UploadImage, Commit }
+    public struct BatchProcessResult
+    {
+        public BatchProcessResult(
+            Process p, AuctionHandle h)
+        {
+            Process = p;
+            Auction = h;
+        }
+        public Process Process { get; }
+        public AuctionHandle Auction { get; }
+
+        public override string ToString() => $"Process: {Process, 11} {Auction}";
     }
 
     public class Lot
     {
+        public string Id { get; set; }
         public string Title { get; set; }
         public string Description { get; set; }
         public int[] ItemAttributes { get; set; }
@@ -40,11 +74,14 @@ namespace dostadning.domain.auction
         public string ShippingCondition { get; set; }
         public string PaymentCondition { get; set; }
 
-        public override string ToString() => "The request in json format.";
+        public override string ToString() => $"Lot Id: {Id}";
     }
 
     public abstract class ImageType
     {
+        public const string Gif = "image/gif";
+        public const string Jpeg = "image/jpeg";
+        public const string Png = "image/png";
         protected ImageType(string mime) { MIME = mime; }
         public string MIME { get; }
         public override string ToString() => MIME;
@@ -53,9 +90,9 @@ namespace dostadning.domain.auction
         {
             switch (mimetype.ToLower())
             {
-                case "image/gif":
-                case "image/jpeg":
-                case "image/png":
+                case Gif:
+                case Jpeg:
+                case Png:
                     return new Valid(mimetype);
                 default:
                     return new Invalid(mimetype);
@@ -83,12 +120,22 @@ namespace dostadning.domain.auction
 
     public sealed class Image
     {
-        public Image(Valid t, Base64Encoded b)
+        public Image(
+            ImageType t,
+            Base64Encoded b)
         {
-            Type = t;
-            Data = b;
+            if (t is Valid)
+            {
+                Type = t;
+                Data = b;
+            }
+            else
+            {
+                throw new Error($"Invalid imagetype {t}");
+            }
         }
-        public Valid Type { get; }
+        public string Key { get; }
+        public ImageType Type { get; }
 
         Base64Encoded Data { get; }
         public byte[] Bytes => Data.Bytes;
@@ -98,9 +145,9 @@ namespace dostadning.domain.auction
     /// <summary>
     /// Represents an Update on the result of a queued process.
     /// </summary>
-    public sealed class Update
+    public sealed class Status
     {
-        private Update(int rId, string type, string msg)
+        private Status(int rId, string type, string msg)
         {
             RequestId = rId;
             Type = type;
@@ -139,7 +186,7 @@ namespace dostadning.domain.auction
         /// </summary>
         /// <returns>Enumeration of valid types</returns>
         public static IEnumerable<string> ValidTypes { get; } =
-            new[] { Update.Done, Update.Pending, Update.Retry, Update.Error };
+            new[] { Status.Done, Status.Pending, Status.Retry, Status.Error };
         /// <summary>
         /// Create a new result.
         /// </summary>
@@ -148,48 +195,54 @@ namespace dostadning.domain.auction
         /// <param name="msg">Optional string</param>
         /// <returns></returns>
         /// <exception cref="dostadning.domain.features.Error">If type parameter is not valid</exception>
-        public static Update Create(int rId, string t, string msg = null) =>
+        public static Status Create(int rId, string t, string msg = null) =>
             ValidTypes.Contains(t)
-                ? new Update(rId, t, msg)
+                ? new Status(rId, t, msg)
                 : throw new Error($"Invalid result type: {t}");
     }
 
-    public sealed class Auction
+    public interface IImageLookup
     {
-        public int Id { get; }
-        public string Status { get; }
-        public string Error { get; }
+        IEnumerable<Image> Get(string key);
     }
-
-    public sealed class JSonAuction
-    {
-        public string Json {get;}
-    }
-
-    public interface IAuction
-    {
-        IObservable<AuctionHandle> Add(
-            Consent c,
-            Lot l);
-
-        IObservable<Unit> AddImage(
-            Consent c,
-            AuctionHandle h);
-        IObservable<Unit> Commit(
-            Consent c,
-            AuctionHandle h);
-
-        IObservable<Auction> List(
-            Consent c);
-
-        IObservable<JSonAuction> Get(
-            Consent c,
-            AuctionHandle h);
-
-    }
-
+    
     public static class AuctionFeature
     {
+        static BatchProcessResult Add(AuctionHandle h) => new BatchProcessResult(Process.Add, h);
+        static BatchProcessResult Image(AuctionHandle h) => new BatchProcessResult(Process.UploadImage, h);
+        static BatchProcessResult Commit(AuctionHandle h) => new BatchProcessResult(Process.Commit, h);
+        
+        public static IObservable<BatchProcessResult> UploadBatch(
+            IAuctionProcedures soap,
+            IImageLookup imgs,
+            Consent c,
+            IEnumerable<Lot> input) => 
+                input.ToObservable().SelectMany(x => Upload(soap, imgs, c, x));
+        static IObservable<BatchProcessResult> Upload(IAuctionProcedures soap,
+            IImageLookup imgs,
+            Consent c,
+            Lot input) => 
+            CreateAuction(soap, c, input)
+                .SelectMany(x => Observable.Concat(
+                    Observable.Return(Add(x)),
+                    AddImages(soap, imgs,c,x).Select(_ => Image(x)),
+                    soap.Commit(c, x.RequestId).Select(_ => Commit(x)))
+                );
+
+        static IObservable<Unit> AddImages(
+            IAuctionProcedures soap,
+            IImageLookup imgs,
+            Consent c,
+            AuctionHandle a) => Observable.Merge(
+                imgs.Get(a.LotId)
+                .Select(x => soap.AddImage(c, x, a.RequestId)));
+
+        public static IObservable<AuctionHandle> CreateAuction(
+            IAuctionProcedures soap,
+            Consent c,
+            IEnumerable<Lot> ls) => Observable.Merge(
+                    ls.Select(x => CreateAuction(soap, c, x)));
+
         public static IObservable<AuctionHandle> CreateAuction(
             IAuctionProcedures soap,
             Consent c,

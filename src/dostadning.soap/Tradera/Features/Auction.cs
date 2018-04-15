@@ -56,34 +56,34 @@ namespace dostadning.soap.tradera.feature
 
         static Error ResultWasNull => new Error("Result points to null.");
 
-        public static AuctionHandle ToDomain(AddItemResponse r) =>
+        public static AuctionHandle ToDomain(string lotId, AddItemResponse r) =>
             r.AddItemResult is QueuedRequestResponse x
-                ? new AuctionHandle(x.ItemId, x.RequestId)
+                ? new AuctionHandle(lotId, x.ItemId, x.RequestId)
                 : throw ResultWasNull;
         
         
         public static string ToDomain(this ResultCode c, int rId)
         {
             if (c.HasFlag(ResultCode.TryAgain))
-                return Update.Retry;
+                return Status.Retry;
             else if (c.HasFlag(ResultCode.Ok))
-                return Update.Done;
+                return Status.Done;
             else if (c.HasFlag(ResultCode.Error))
-                return Update.Error;
+                return Status.Error;
             else
-                return Update.Pending;
+                return Status.Pending;
         }
         
-        public static Update ToDomain(this RequestResult r) => r != null
-            ? Update.Create(r.RequestId, r.ResultCode.ToDomain(r.RequestId), $"{r.Message} ({r.ResultCode})")
+        public static Status ToDomain(this RequestResult r) => r != null
+            ? Status.Create(r.RequestId, r.ResultCode.ToDomain(r.RequestId), $"{r.Message} ({r.ResultCode})")
             : null;
-        public static IEnumerable<Update> ToDomain(
+        public static IEnumerable<Status> ToDomain(
             this GetRequestResultsResponse r) =>
             r.GetRequestResultsResult != null
             ? r.GetRequestResultsResult
                 .Select(x => x.ToDomain())
                 .Where(x => x != null) 
-            : Enumerable.Empty<Update>();
+            : Enumerable.Empty<Status>();
     }
 
     public sealed class InventoryCalls :
@@ -118,7 +118,7 @@ namespace dostadning.soap.tradera.feature
                 AuthorizationHeader: Auction.MapFrom(c),
                 ConfigurationHeader: ConfP,
                 itemRequest: Auction.MapFrom(l)))
-            .Select(Auction.ToDomain)
+            .Select(x => Auction.ToDomain(l.Id, x))
             .Catch<AuctionHandle, FaultException>(
                 e => Observable.Throw<AuctionHandle>(TraderaError(e, c, l.ToString())));
 
@@ -164,7 +164,7 @@ namespace dostadning.soap.tradera.feature
         string CommitFault(int id) => 
             $"RequestId: {id}";
 
-        public IObservable<IEnumerable<Update>> GetResult(
+        public IObservable<IEnumerable<Status>> GetResult(
             Consent c, 
             int[] ids) =>
             Observable.FromAsync(() => Client.GetRequestResultsAsync(
@@ -173,8 +173,8 @@ namespace dostadning.soap.tradera.feature
                 ConfigurationHeader: ConfP,
                 requestIds: ids))
             .Select(x => x.ToDomain())
-            .Catch<IEnumerable<Update>, FaultException>(
-                e => Observable.Throw<IEnumerable<Update>>(TraderaError(e, c, GetResultFault(ids))));
+            .Catch<IEnumerable<Status>, FaultException>(
+                e => Observable.Throw<IEnumerable<Status>>(TraderaError(e, c, GetResultFault(ids))));
         string GetResultFault(int[] ids) => string.Join(", ", ids.Select(x => x.ToString()));
     }
 }

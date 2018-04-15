@@ -17,7 +17,7 @@ namespace dostadning.domain
         /// </summary>
         /// <param name="t">Item to add</param>
         /// <returns>A reference to the same object that was supplied</returns>
-        IRepository<T, TKey> Add(T t);
+        IDataCommand<T, TKey> Add(T t);
 
         IObservable<T> Find(TKey key);
         /// <summary>

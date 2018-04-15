@@ -79,17 +79,19 @@ namespace unit
         static Seller Seller => new Seller(AccountId, id);
         static Seller NoSeller => new Seller(AccountId, 0);
 
+        static TraderaUser User => new TraderaUser
+        {
+            Alias = Alias,
+            Id = id,
+            Consent = new TraderaConsent { Id = requestId }
+        };
+
         Account AccountRecord() => new Account
         {
             Id = AccountId,
             TraderaUsers = new[]
             {
-                new TraderaUser
-                {
-                    Alias = Alias,
-                    Id = id,
-                    Consent = new TraderaConsent { Id = requestId }
-                }
+                User
             }.ToList()
         };
 
@@ -116,39 +118,40 @@ namespace unit
             return m.Object;
         }
 
+        Mock<IDataCommand<TraderaUser, Seller>> Sellers(
+            TraderaUser user,
+            bool commits,
+            IScheduler s)
+        {
+            var m = new Mock<IDataCommand<TraderaUser, Seller>>();
+            m.Setup(x => x.Find(It.IsAny<Seller>()))
+                .Returns(user != null
+                    ? Observable.Return(user, s)
+                    : Observable.Throw<TraderaUser>(TestException));
+
+            m.Setup(x => x.Commit())
+                .Returns(commits
+                    ? Observable.Return(1, s)
+                    : Observable.Throw<int>(TestException));
+
+            return m;
+        }
+
         [TestMethod]
         public void SuccessfulFetchConsentShould()
         {
             var s = new TestScheduler();
             var account = AccountRecord();
-            var repo = Repo(account, true, s);
+            var repo = Sellers(account.TraderaUser(id), true, s);
 
             var a = s.LetRun(() => 
-                Sut.FetchConsent(repo.Object, FetchCall(true), Seller, requestId));
+                Sut.FetchConsent(repo.Object, FetchCall(true), Seller));
 
             var r = a.GetValues().Single();
             var record = ConsentRecord(account);
 
             Assert.IsTrue(Expected.Token == record.Token && Expected.Expires == record.Expires);
             repo.Verify(x => x.Commit(), Times.Once);
-        }
-
-        [TestMethod]
-        public void ShouldThrowOnAliasNotFoundOnAccount()
-        {
-            var s = new TestScheduler();
-            var soap = new Mock<IAuthorizationCalls>();
-            var account = AccountRecord();
-            var repo = Repo(account, true, s).Object;
-
-            var a = s.LetRun(() => 
-                Sut.FetchConsent(repo, soap.Object, NoSeller, Guid.Empty));
-
-            (bool errored, Exception e) = a.Errored();
-
-            Assert.IsTrue(errored && e is Error, 
-                $"e: true and Error a: {errored} {e?.GetType().ToString()}");
-            soap.Verify(x => x.FetchToken(It.IsAny<int>(), It.IsAny<string>()), Times.Never);
         }
     }
 }

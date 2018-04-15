@@ -9,6 +9,8 @@ open Startup
 open dostadning.domain.account
 open dostadning.domain.lookups
 open dostadning.domain.seller
+open dostadning.domain.auction
+open System.IO
 
 module Commands =
 
@@ -52,7 +54,7 @@ module Commands =
         let acct = Guid.Parse o.account
         let s = seller acct o.id
         let cId = Guid.Parse o.consentId
-        LogResult logr (fun() -> sell.Confirm(s, cId)) |> run
+        LogResult logr (fun() -> sell.Confirm(s)) |> run
 
     [<Verb("ListSellers", HelpText = "For a given [account] list all sellers")>]
     type ListSellersOpts = {
@@ -96,28 +98,16 @@ module Commands =
         token : string
     }
 
-    // let RunCreateAuction (o : CreateAuctionOpts) l =
-    //     let logr = Action<AuctionHandle>(string >> printf "%s")
-    //     let acct = Guid.Parse o.account
-    //     let s = seller  acct o.id
-    //     let c = cons s o.token
-    //     LogResult logr (fun () -> AuctionFeature.CreateAuction(soapAuctions, c, l))
-    //                                         |> run
-
-    [<Verb("AddImage", HelpText = "Add Image to a request.")>]
-    type AddImageOpts = {
+    [<Verb("UploadBatch", HelpText = "Upload a batch of auctions")>]
+    type UploadBatchOpts = {
         [<Value(0)>]
         account : string
         [<Value(1)>]
-        traderaId : int
+        id : int
         [<Value(2)>]
         token : string
-        [<Value(3)>]
-        requestId : int
-        [<Value(4)>]
-        path : string
     }
-    
+
     // let RunAddImage (o : AddImageOpts) = 
     //     let bytes =
     //         File.ReadAllBytes 
@@ -140,6 +130,89 @@ module Commands =
     //     let logAddImage = Action<Reactive.Unit> (fun _ -> printfn "Done")
         
     //     LogResult logAddImage (fun () -> (addImage o)) |> run
+
+    let findInDirectory path k =
+        let bytes =
+            File.ReadAllBytes 
+            >> Convert.ToBase64String
+            >> Convert.FromBase64String
+            >> Base64Encoded
+        let jpg = (ImageType.ImageSupport "image/jpeg") :?> Valid
+        
+        let img p = new Image(jpg, (bytes p))
+        
+        Path.Combine(path, k) 
+        |> Directory.EnumerateFiles
+        |> Seq.map img
+        
+
+    type FSImageLookup(datadir) =
+        interface IImageLookup with 
+            member this.Get k = findInDirectory datadir k
+                
+    let RunUploadBatch (o : UploadBatchOpts) =
+        let cd = Directory.GetCurrentDirectory()
+        let csv = Path.Combine(cd, "testdata", "testdata.csv")
+        let imageDirs = Path.Combine(cd, "testdata")
+
+        let ls = File.ReadAllLines(csv)
+        let values (s : string) = s.Split [|';'|]
+        let (head, data) = (ls.[0] |> values, Seq.tail ls |> Seq.map values)
+        let byCol h xs = Seq.zip h xs
+        let toDict es = Seq.fold (fun acc (k, v) -> Map.add k v acc) Map.empty es
+        let toLot m =
+            let toInts (s : string) = s.Split([|','|]) |> Seq.map int |> Seq.toArray
+            new Lot(
+                    Id = (Map.find "Id" m),
+                    Title = (Map.find "Title" m),
+                    Description = (Map.find "Description" m),
+                    ItemAttributes = (Map.find "ItemAttributes" m |> toInts),
+                    Duration = (Map.find "Duration" m |> int),
+                    Restarts = (Map.find "Restarts" m |> int),
+                    StartPrice = (Map.find "StartPrice" m |> int), //StartPrice < ReservePrice < BytItNowPrice
+                    ReservePrice = (Map.find "ReservePrice" m |> int),
+                    BuyItNowPrice = (Map.find "BuyItNowPrice" m |> int),
+                    VAT = (Map.find "VAT" m |> int),
+                    AcceptedBidderId = (Map.find "AcceptedBidderId" m |> int),
+                    PaymentOptionIds = (Map.find "PaymentOptionIds" m |> toInts),
+                    ShippingCondition = (Map.find "ShippingCondition" m),
+                    PaymentCondition = (Map.find "PaymentCondition" m))
+
+        let lots = Seq.map (fun r -> byCol head r |> toDict |> toLot) data
+
+        let upload (o : UploadBatchOpts) =
+            let acct = Guid.Parse o.account
+            let s = seller acct o.id
+            let c = new Consent(s, o.token)
+            uploadbatch (FSImageLookup(imageDirs)) c lots
+
+        let logr = Action<BatchProcessResult>(string >> printfn "%s")
+        
+        LogResult logr (fun () -> (upload o)) |> run
+
+    // let RunCreateAuction (o : CreateAuctionOpts) l =
+    //     let logr = Action<AuctionHandle>(string >> printf "%s")
+    //     let acct = Guid.Parse o.account
+    //     let s = seller  acct o.id
+    //     let c = cons s o.token
+    //     LogResult logr (fun () -> AuctionFeature.CreateAuction(soapAuctions, c, l))
+    //                                         |> run
+
+    [<Verb("AddImage", HelpText = "Add Image to a request.")>]
+    type AddImageOpts = {
+        [<Value(0)>]
+        account : string
+        [<Value(1)>]
+        traderaId : int
+        [<Value(2)>]
+        token : string
+        [<Value(3)>]
+        requestId : int
+        [<Value(4)>]
+        path : string
+    }
+    
+    
 
     [<Verb("CommitRequest", HelpText = "Commit a request to add an auction indicating we're not going to add more images.")>]
     type CommitOpts = {
@@ -215,6 +288,5 @@ module Commands =
 
     //     LogResult log (fun () -> GetTraderaConsentFeature.PairWithId(soapAuth, o.traderaalias)) |> run
 
-    
 
     
