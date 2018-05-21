@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Reactive;
+using System.Reactive.Concurrency;
 using System.Reactive.Linq;
+using System.Reactive.Subjects;
 using dostadning.domain.seller;
 
 namespace dostadning.domain.auction
@@ -229,6 +231,19 @@ namespace dostadning.domain.auction
                     soap.Commit(c, x.RequestId).Select(_ => Commit(x)))
                 );
 
+        static ImmutableArray<int> empty => ImmutableArray<int>.Empty;        
+
+        public static IObservable<IEnumerable<Status>> PollRequestOnQue(
+            IAuctionProcedures soap,
+            Consent c,
+            IObservable<Unit> cue,
+            IObservable<BatchProcessResult> requests) =>
+                cue.WithLatestFrom(
+                        requests
+                            .Where(x => x.Process == Process.Add)
+                            .Scan(empty, (ids, r) => ids.Add(r.Auction.RequestId)),
+                        (_, rIds) => soap.GetResult(c, rIds))
+                    .Merge();
         static IObservable<Unit> AddImages(
             IAuctionProcedures soap,
             IImageLookup imgs,
@@ -240,13 +255,6 @@ namespace dostadning.domain.auction
         public static IObservable<AuctionHandle> CreateAuction(
             IAuctionProcedures soap,
             Consent c,
-            IEnumerable<Lot> ls) => Observable.Merge(
-                    ls.Select(x => CreateAuction(soap, c, x)));
-
-        public static IObservable<AuctionHandle> CreateAuction(
-            IAuctionProcedures soap,
-            Consent c,
             Lot l) => soap.AddLot(c, l);
-
     }
 }

@@ -21,9 +21,6 @@ let main argv =
          | :? ListSellersOpts as opts    -> RunListSellers opts
          | :? GetConsentOpts as opts     -> RunGetConsent opts
          | :? UploadBatchOpts as opts    -> RunUploadBatch opts
-        //  | :? FetchConsentOpts as opts   -> RunFetchConsent opts
-        //  | :? CommitOpts as opts         -> RunCommit opts
-        //  | :? StatRequestOpts as opts    -> RunStatRequest opts
          | _                             -> 0
     | :? CommandLine.NotParsed<obj>      -> printfn "notparsed"
                                             0

@@ -166,15 +166,16 @@ namespace dostadning.soap.tradera.feature
 
         public IObservable<IEnumerable<Status>> GetResult(
             Consent c, 
-            int[] ids) =>
+            IEnumerable<int> ids) =>
             Observable.FromAsync(() => Client.GetRequestResultsAsync(
                 AuthenticationHeader: AuthNP,
                 AuthorizationHeader: Auction.MapFrom(c),
                 ConfigurationHeader: ConfP,
-                requestIds: ids))
+                requestIds: ids.ToArray()))
             .Select(x => x.ToDomain())
             .Catch<IEnumerable<Status>, FaultException>(
                 e => Observable.Throw<IEnumerable<Status>>(TraderaError(e, c, GetResultFault(ids))));
-        string GetResultFault(int[] ids) => string.Join(", ", ids.Select(x => x.ToString()));
+
+        string GetResultFault(IEnumerable<int> ids) => string.Join(", ", ids.Select(x => x.ToString()));
     }
 }

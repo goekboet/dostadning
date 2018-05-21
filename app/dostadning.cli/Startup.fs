@@ -22,6 +22,8 @@ module Startup =
             AuctionFeature.UploadBatch(soap, imgs, c, input)
 
         let uploadbatch imgs c input = uploadbatch' soapAuctions imgs c input
+        let poll' soap c cues upload = AuctionFeature.PollRequestOnQue(soap, c, cues, upload)
+        let poll c cues upload = poll' soapAuctions c cues upload
 
         let seller acct id = new Seller(acct, id)
 

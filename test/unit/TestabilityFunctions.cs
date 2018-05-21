@@ -30,11 +30,21 @@ namespace unit
                 .Select(_ => true)
                 .SingleOrDefault();
 
-
         public static IEnumerable<Notification<T>> GetValues<T>(
             this ITestableObserver<T> o,
             NotificationKind k) => o.Messages
                 .Select(x => x.Value)
                 .Where(x => x.Kind == k);
+
+        public static ITestableObservable<T> TestStreamHot<T>(
+            this TestScheduler s,
+            IEnumerable<(long t, T v)> es)
+        {
+            return s.CreateHotObservable<T>(
+                es
+                .Select(e => ReactiveTest.OnNext(e.t, e.v))
+                .Concat(new[] { ReactiveTest.OnCompleted<T>(es.Max(x => x.t)) })
+                .ToArray());
+        }
     }
 }

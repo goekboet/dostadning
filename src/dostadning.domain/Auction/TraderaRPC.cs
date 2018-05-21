@@ -10,6 +10,6 @@ namespace dostadning.domain.auction
         IObservable<AuctionHandle> AddLot(Consent c, Lot l);
         IObservable<Unit> AddImage(Consent c, Image i, int requestId);
         IObservable<Unit> Commit(Consent c, int requestId);
-        IObservable<IEnumerable<Status>> GetResult(Consent c, int[] requestIds);
+        IObservable<IEnumerable<Status>> GetResult(Consent c, IEnumerable<int> requestIds);
     }
 }

@@ -10,7 +10,6 @@ open dostadning.domain.account
 open dostadning.domain.lookups
 open dostadning.domain.seller
 open dostadning.domain.auction
-open System.IO
 
 module Commands =
 
@@ -106,31 +105,13 @@ module Commands =
         id : int
         [<Value(2)>]
         token : string
+        [<Value(3)>]
+        interval : float
+        [<Value(4)>]
+        emits : int
     }
 
-    // let RunAddImage (o : AddImageOpts) = 
-    //     let bytes =
-    //         File.ReadAllBytes 
-    //         >> Convert.ToBase64String
-    //         >> Convert.FromBase64String
-    //         >> Base64Encoded
-    //     let jpg = (ImageType.ImageSupport "image/jpeg") :?> Valid
-        
-    //     let img p = new Image(jpg, (bytes p))
-
-    //     let addImage' cons image requestId =
-    //         soapAuctions.AddImage(cons, image, requestId)
-        
-    //     let addImage (o : AddImageOpts) =
-    //         let acct = Guid.Parse o.account
-    //         let c = seller acct o.traderaId
-    //         let i = img o.path
-    //         addImage' c i o.requestId
-        
-    //     let logAddImage = Action<Reactive.Unit> (fun _ -> printfn "Done")
-        
-    //     LogResult logAddImage (fun () -> (addImage o)) |> run
-
+     
     let findInDirectory path k =
         let bytes =
             File.ReadAllBytes 
@@ -138,11 +119,12 @@ module Commands =
             >> Convert.FromBase64String
             >> Base64Encoded
         let jpg = (ImageType.ImageSupport "image/jpeg") :?> Valid
-        
         let img p = new Image(jpg, (bytes p))
         
+        let notHidden (f : String) = Path.GetFileName(f).StartsWith(".") |> not 
         Path.Combine(path, k) 
         |> Directory.EnumerateFiles
+        |> Seq.filter notHidden
         |> Seq.map img
         
 
@@ -184,35 +166,14 @@ module Commands =
             let acct = Guid.Parse o.account
             let s = seller acct o.id
             let c = new Consent(s, o.token)
-            uploadbatch (FSImageLookup(imageDirs)) c lots
+            let cues = cues o.emits o.interval
+            let upload = uploadbatch (FSImageLookup(imageDirs)) c lots
+            poll c cues upload
 
-        let logr = Action<BatchProcessResult>(string >> printfn "%s")
-        
+            
+        let lines x = String.Join(Environment.NewLine, Seq.map string x)
+        let logr = Action<Generic.IEnumerable<Status>>(lines >> printfn "\n%s\n")
         LogResult logr (fun () -> (upload o)) |> run
-
-    // let RunCreateAuction (o : CreateAuctionOpts) l =
-    //     let logr = Action<AuctionHandle>(string >> printf "%s")
-    //     let acct = Guid.Parse o.account
-    //     let s = seller  acct o.id
-    //     let c = cons s o.token
-    //     LogResult logr (fun () -> AuctionFeature.CreateAuction(soapAuctions, c, l))
-    //                                         |> run
-
-    [<Verb("AddImage", HelpText = "Add Image to a request.")>]
-    type AddImageOpts = {
-        [<Value(0)>]
-        account : string
-        [<Value(1)>]
-        traderaId : int
-        [<Value(2)>]
-        token : string
-        [<Value(3)>]
-        requestId : int
-        [<Value(4)>]
-        path : string
-    }
-    
-    
 
     [<Verb("CommitRequest", HelpText = "Commit a request to add an auction indicating we're not going to add more images.")>]
     type CommitOpts = {
@@ -224,12 +185,6 @@ module Commands =
         requestId : int
     }
 
-    // let RunCommit(o : CommitOpts) = 
-    //     let log = Action<Reactive.Unit> (fun _ -> printfn "Done")
-        
-    //     LogResult log (fun _ -> soapAuctions.Commit(cons o.traderaId o.token, o.requestId)) 
-            // |> run
-
     [<Verb("StatRequest", HelpText = "Get status of a request")>]
     type StatRequestOpts = {
         [<Value(0)>]
@@ -239,17 +194,6 @@ module Commands =
         [<Value(2, Min = 1)>]
         requestIds : Generic.IEnumerable<int>
     }
-
-    // let RunStatRequest(o : StatRequestOpts) =
-    //     let logUpdates (l : Generic.IEnumerable<Update>) = 
-    //         String.Join(Environment.NewLine, Seq.map string l) 
-    //         |> printfn "%s"
-    //     let log = Action<Generic.IEnumerable<Update>> logUpdates
-
-    //     LogResult log (fun _ -> soapAuctions.GetResult(cons o.traderaId o.token, o.requestIds |> Seq.toArray))
-    //         |> run
-
-    
 
     [<Verb("Lookups", HelpText = "Fetch lookups for items through tradera api")>]
     type LookupOpts = {
@@ -281,12 +225,3 @@ module Commands =
         [<Value(0)>]
         traderaalias : string
     }
-
-    // let RunFetchId(o : FetchIdOpts) = 
-    //     let GetIdLog= printfn "%s is associated with %i"
-    //     let log = Action<int> (GetIdLog o.traderaalias)
-
-    //     LogResult log (fun () -> GetTraderaConsentFeature.PairWithId(soapAuth, o.traderaalias)) |> run
-
-
-    
