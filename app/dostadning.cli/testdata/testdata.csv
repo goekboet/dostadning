@@ -1,0 +1,4 @@
+Id;Title;Description;ItemAttributes;Duration;Restarts;StartPrice;ReservePrice;BuyItNowPrice;VAT;AcceptedBidderId;PaymentOptionIds;ShippingCondition;PaymentCondition
+5107b3d1-9233-42b9-a62e-81ecb0e4f5e9;title;Testdescription;1;14;1;100;0;0;25;1;8192;OK;OK
+d95eeffd-913f-4d79-a9bd-0f5ff693bc52;title;Testdescription;1;14;1;100;0;0;25;1;8192;OK;OK
+5218f9ad-3ba1-4bd9-869d-29e352790bed;title;Testdescription;1;14;1;100;0;0;25;1;8192;OK;OK
